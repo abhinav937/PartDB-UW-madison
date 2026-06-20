@@ -1,0 +1,4 @@
+# One SSMG PCB code per line. Blank lines and lines starting with # are ignored.
+# Format: IM-SSMG-{DAY}-{MON}-{MODULE}-{THICKNESS}-{MATERIAL}-{UNIT}
+IM-SSMG-05-MAY-CTL-1M50-FR4-0005
+IM-SSMG-27-MAR-MMS-1M50-FR4-0001

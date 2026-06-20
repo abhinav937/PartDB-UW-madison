@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Part-DB Scan Diagnostic v2 (zxing-wasm)</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 12px; background:#111; color:#eee; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  #video { width: 100%; max-width: 480px; border:2px solid #444; border-radius:8px; background:#000; }
+  .card { background:#1c1c1c; border:1px solid #333; border-radius:8px; padding:10px; margin:10px 0; }
+  .lbl { color:#8ab4f8; font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+  .val { font-family: ui-monospace, monospace; font-size:14px; word-break:break-all; white-space:pre-wrap; }
+  .hex { color:#a5d6a7; }
+  .warn { color:#ff8a80; }
+  .ok { color:#69f0ae; }
+  button { font-size:16px; padding:10px 16px; margin:4px 0; border-radius:8px; border:1px solid #555; background:#2962ff; color:#fff; }
+  select { font-size:15px; padding:8px; width:100%; margin:6px 0; }
+</style>
+</head>
+<body>
+<h1>📷 Part-DB Scan Diagnostic v2</h1>
+<div id="boot" class="card val">loading WASM decoder…</div>
+<select id="cams"></select>
+<video id="video" playsinline muted></video>
+<canvas id="canvas" style="display:none"></canvas>
+<div class="card">
+  <div class="lbl">Status</div>
+  <div id="status" class="val">starting…</div>
+</div>
+<div class="card">
+  <div class="lbl">format</div><div id="fmt" class="val">—</div>
+  <div class="lbl" style="margin-top:8px">text (rendered)</div><div id="text" class="val">—</div>
+  <div class="lbl" style="margin-top:8px">text length</div><div id="len" class="val">—</div>
+  <div class="lbl" style="margin-top:8px">BYTES (hex) — look for <b>1e</b>(RS) &amp; <b>1d</b>(GS)</div><div id="hex" class="val hex">—</div>
+  <div class="lbl" style="margin-top:8px">separators present?</div><div id="sep" class="val">—</div>
+</div>
+<button id="freeze">⏸ Freeze last result</button>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+let frozen = false;
+$('freeze').onclick = () => { frozen = !frozen; $('freeze').textContent = frozen ? "▶ Resume scanning" : "⏸ Freeze last result"; };
+
+let readBarcodes;
+try {
+  const mod = await import("https://esm.sh/zxing-wasm@2/reader");
+  readBarcodes = mod.readBarcodes;
+  $('boot').innerHTML = '<span class="ok">✅ zxing-wasm loaded (same decoder family Part-DB uses on iOS)</span>';
+} catch (e) {
+  $('boot').innerHTML = '<span class="warn">Failed to load zxing-wasm: ' + e + '</span>';
+}
+
+const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+let stream = null;
+
+async function start(deviceId) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  const constraints = deviceId ? { video: { deviceId: { exact: deviceId } } } : { video: { facingMode: { ideal: 'environment' } } };
+  stream = await navigator.mediaDevices.getUserMedia(constraints);
+  video.srcObject = stream; await video.play();
+  $('status').textContent = 'camera live — aim at the DataMatrix square';
+}
+async function listCams() {
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  const sel = $('cams'); sel.innerHTML = '';
+  devs.forEach((d,i) => { const o=document.createElement('option'); o.value=d.deviceId; o.textContent=d.label||('Camera '+(i+1)); sel.appendChild(o); });
+  const back = devs.find(d => /back|rear|environment/i.test(d.label));
+  if (back) sel.value = back.deviceId;
+  sel.onchange = () => start(sel.value);
+}
+const toHex = arr => Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join(' ');
+const strHex = s => Array.from(s).map(c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
+
+async function loop() {
+  if (readBarcodes && video.readyState >= 2 && !frozen) {
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    if (canvas.width) {
+      ctx.drawImage(video, 0, 0);
+      try {
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const res = await readBarcodes(img, { tryHarder: true, formats: ["DataMatrix","Code128","Code39","DataBar","QRCode","EAN-13","EAN-8"], maxNumberOfSymbols: 1 });
+        if (res && res.length) {
+          const r = res[0];
+          $('fmt').textContent = r.format;
+          $('text').textContent = r.text;
+          $('len').textContent = (r.text ? r.text.length : 0) + ' chars';
+          // zxing-wasm v2 exposes raw bytes (Uint8Array)
+          const bytes = r.bytes || r.rawBytes;
+          const hex = bytes ? toHex(bytes) : ('(no bytes field) text-hex: ' + strHex(r.text||''));
+          $('hex').textContent = hex;
+          const hasRS = /(^|\s)1e(\s|$)/.test(hex), hasGS = /(^|\s)1d(\s|$)/.test(hex);
+          $('sep').innerHTML = (hasRS||hasGS)
+            ? '<span class="ok">YES — RS:'+hasRS+'  GS:'+hasGS+' (fixable: read raw bytes)</span>'
+            : '<span class="warn">NO separators found — will need reconstruction</span>';
+          $('status').textContent = '✅ decoded! freeze + send Claude a photo of this screen';
+        }
+      } catch(e){ $('status').textContent = 'decode error: '+e; }
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+try {
+  await start();
+  await listCams();
+  const chosen = $('cams').value; if (chosen) await start(chosen);
+  loop();
+} catch(e){ $('status').innerHTML = '<span class="warn">camera error: '+e+'</span>'; }
+</script>
+</body>
+</html>

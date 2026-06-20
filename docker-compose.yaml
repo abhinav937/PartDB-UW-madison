@@ -1,0 +1,42 @@
+services:
+  partdb:
+    container_name: partdb
+    # Part-DB runs on port 8080 on your laptop. Reachable via:
+    #   - laptop:        http://localhost:8080
+    #   - same WiFi:     http://10.141.97.66:8080
+    #   - Tailscale:     http://100.66.209.128:8080   (from anywhere)
+    ports:
+      - '8080:80'
+    volumes:
+      # All your data lives in these folders next to this file (C:\PartDB\)
+      - ./uploads:/var/www/html/uploads
+      - ./public_media:/var/www/html/public/media
+      - ./db:/var/www/html/var/db
+    restart: unless-stopped
+    # Build from our local clone (the fork with the iOS DataMatrix scanner fix).
+    # To go back to the official prebuilt image, comment out `build:` and set
+    # image back to jbtronics/part-db1:latest
+    build:
+      context: ./Part-DB-server
+    image: partdb-custom:local
+    # Info-provider API keys live here (kept out of this file)
+    env_file:
+      - secrets.env
+    environment:
+      # SQLite database stored in the mapped ./db folder
+      - DATABASE_URL=sqlite:///%kernel.project_dir%/var/db/app.db
+      - APP_ENV=docker
+
+      # --- Personal settings (edit freely, EXCEPT BASE_CURRENCY) ---
+      - DEFAULT_LANG=en
+      - DEFAULT_TIMEZONE=America/Chicago
+      # BASE_CURRENCY is permanent once the DB is created. USD assumed.
+      - BASE_CURRENCY=USD
+      - INSTANCE_NAME=Part-DB
+      - ALLOW_ATTACHMENT_DOWNLOADS=0
+      - USE_GRAVATAR=0
+
+      # Served via Tailscale Serve (HTTPS reverse proxy on the host).
+      # Trust private ranges so Part-DB honors X-Forwarded-Proto=https and
+      # generates correct https:// URLs (fixes login/CSRF behind the proxy).
+      - TRUSTED_PROXIES=127.0.0.0/8,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16

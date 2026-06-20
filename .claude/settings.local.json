@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git --version)",
+      "WebFetch(domain:docs.part-db.de)",
+      "Bash(git clone *)",
+      "Bash(git remote *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker info *)",
+      "Bash(php --version)",
+      "Bash(composer --version)",
+      "PowerShell(winget install --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements --silent --disable-interactivity)",
+      "Bash(docker context *)",
+      "Bash(docker version *)",
+      "PowerShell(\"---\")",
+      "PowerShell($p = Get-Process -Name \"Docker Desktop\" -ErrorAction SilentlyContinue; if \\($p\\) { \"Docker Desktop GUI running, PID $\\($p.Id\\)\" } else { \"Docker Desktop GUI NOT running\" }; \"---\"; Test-Path \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "Read(//c/c/PartDB/**)",
+      "Read(//c/c/PartDB/Part-DB-server/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/)",
+      "Bash(curl -sL http://localhost:8080/)",
+      "Bash(docker exec *)"
+    ]
+  }
+}

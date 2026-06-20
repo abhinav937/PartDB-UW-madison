@@ -1,0 +1,8 @@
+# Part-DB-server is tracked in its own GitHub repo (abhinav937/Part-DB-server).
+# It is excluded here to avoid duplicating ~173 MB. See RESTORE.md to bring it back.
+/Part-DB-server/
+
+# OS / editor cruft
+Thumbs.db
+desktop.ini
+.DS_Store
