@@ -5,6 +5,9 @@ This repo is a full backup of the Part-DB deployment at `C:\PartDB`.
 > ⚠️ `secrets.env` is committed here (private repo) so the deployment can be
 > restored as-is. Treat this repo as sensitive.
 
+> **AI agents / full Windows server handoff:** use **[AGENT_INSTALL.md](./AGENT_INSTALL.md)**
+> (prerequisites, clone pins, Docker, DigiKey, tags, verification checklist).
+
 ## 1. Clone the backup
 
 ```bash
